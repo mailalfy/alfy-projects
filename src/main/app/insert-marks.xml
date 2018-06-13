@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+    <validation:config name="Validation_Configuration" doc:name="Validation Configuration"/>
+    <flow name="insert-marksFlow">
+        <dw:transform-message doc:name="Transform Message" metadata:id="156cb839-0173-40cc-ae05-4152e3d37374">
+            <dw:input-payload/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+{
+    regno:payload.regno,
+	maths:payload.marks.maths,
+	physics:payload.marks.physics,
+	chemistry:payload.marks.chemistry
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <set-variable variableName="originalPayload" value="#[payload]" doc:name="saving payload"/>
+        <set-variable variableName="regnumber" value="#[payload.regno]" doc:name="saving reg number"/>
+        <validation:all config-ref="Validation_Configuration" doc:name="Validation">
+            <validation:validations>
+                <validation:is-not-null value="#[payload.regno]" message="please enter a proper value for Register number"/>
+                <validation:is-not-null value="#[payload.chemistry]" message="please enter a proper value for Chemistry"/>
+                <validation:is-not-null value="#[payload.physics]" message="please enter a proper value for Physics"/>
+                <validation:is-not-null value="#[payload.maths]" message="please enter a proper value for Maths"/>
+            </validation:validations>
+        </validation:all>
+        <until-successful maxRetries="3" millisBetweenRetries="10000" synchronous="true" doc:name="Until Successful">
+            <db:select config-ref="MySQL_Configuration" doc:name="check for existing record">
+                <db:parameterized-query><![CDATA[select count(*)as count from marks where regno=#[flowVars.regnumber]]]></db:parameterized-query>
+            </db:select>
+        </until-successful>
+        <choice doc:name="Choice">
+            <when expression="#[payload[0].count==0]">
+                <set-payload value="#[flowVars.originalPayload]" doc:name="Set Payload"/>
+                <db:insert config-ref="MySQL_Configuration" doc:name="Database">
+                    <db:parameterized-query><![CDATA[insert into marks (regno,maths,physics,chemistry) values(#[payload.regno],
+#[payload.maths],#[payload.physics],#[payload.chemistry])]]></db:parameterized-query>
+                </db:insert>
+                <dw:transform-message doc:name="Transform Message">
+                    <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+	regno: flowVars.regnumber,
+	status:"marks has been created"
+}]]></dw:set-payload>
+                </dw:transform-message>
+            </when>
+            <otherwise>
+                <set-payload value="#[flowVars.originalPayload]" doc:name="Set Payload"/>
+                <db:update config-ref="MySQL_Configuration" doc:name="Database">
+                    <db:parameterized-query><![CDATA[update marks set maths=#[payload.maths],physics=#[payload.physics],
+chemistry=#[payload.chemistry] where regno=#[flowVars.regnumber]]]></db:parameterized-query>
+                </db:update>
+                <dw:transform-message doc:name="Transform Message">
+                    <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+	regno: flowVars.regnumber,
+	status:"marks has been updated"
+
+}]]></dw:set-payload>
+                </dw:transform-message>
+            </otherwise>
+        </choice>
+        <exception-strategy ref="error_handlingCatch_Exception_Strategy" doc:name="Reference Exception Strategy"/>
+    </flow>
+</mule>

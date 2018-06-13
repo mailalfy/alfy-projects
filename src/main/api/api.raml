@@ -1,0 +1,24 @@
+#%RAML 0.8
+title: Student Result Database Access
+version: 1.0
+baseUri: http://localhost:8088/
+
+/getResult:
+  get:
+    description: "enter the regno"
+    queryParameters:
+      regNo:
+    responses:
+        200:
+          body:
+            application/json:
+              example: !include examples/result-response.json
+/insertMarks:
+  post:
+   description: "update the marks"
+   body:
+    application/json:
+     example: !include examples/update-response.json
+              
+      
+     

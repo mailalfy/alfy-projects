@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd">
+    
+    <flow name="dbdatasyncFlow">
+        <poll doc:name="Poll">
+            <fixed-frequency-scheduler frequency="1" timeUnit="MINUTES"/>
+            <logger message="flow started" level="INFO" doc:name="Logger"/>
+        </poll>
+        <batch:execute name="dbdatasyncBatch" doc:name="Batch Execute"/>
+    </flow>
+    <batch:job name="dbdatasyncBatch">
+        <batch:input>
+            <db:select config-ref="MySQL_Configuration" doc:name="Database">
+                <db:parameterized-query><![CDATA[select * from marks]]></db:parameterized-query>
+            </db:select>
+        </batch:input>
+        <batch:process-records>
+            <batch:step name="Batch_Step">
+                <dw:transform-message doc:name="Transform Message">
+                    <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	regno: payload.regno,
+	total: payload.maths + payload.physics + payload.chemistry
+}]]></dw:set-payload>
+                </dw:transform-message>
+                <batch:set-record-variable variableName="regno" value="#[payload.regno]" doc:name="Record Variable"/>
+                <batch:set-record-variable variableName="total" value="#[payload.total]" doc:name="Record Variable"/>
+                <choice doc:name="Choice">
+                    <when expression="#[recordVars.total&gt;150]">
+                        <logger message=" #[recordVars.regno] has passed " level="INFO" doc:name="Logger"/>
+                        <db:update config-ref="MySQL_Configuration" doc:name="Database">
+                            <db:parameterized-query><![CDATA[update RESULTS set outcome="pass" where regno=#[payload.regno]]]></db:parameterized-query>
+                        </db:update>
+                    </when>
+                    <otherwise>
+                        <logger message="#[recordVars.regno] has failed" level="INFO" doc:name="Logger"/>
+                        <db:update config-ref="MySQL_Configuration" doc:name="Database">
+                            <db:parameterized-query><![CDATA[update RESULTS set outcome="fail" where regno=#[payload.regno]]]></db:parameterized-query>
+                        </db:update>
+                    </otherwise>
+                </choice>
+            </batch:step>
+        </batch:process-records>
+    </batch:job>
+</mule>
