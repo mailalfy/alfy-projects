@@ -42,7 +42,7 @@ http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mu
         <choice doc:name="Choice">
             <when expression="#[payload[0].count==0]">
                 <set-payload value="#[flowVars.originalPayload]" doc:name="Set Payload"/>
-                <db:insert config-ref="MySQL_Configuration" doc:name="Database">
+                <db:insert config-ref="MySQL_Configuration" doc:name="Inserting the marks">
                     <db:parameterized-query><![CDATA[insert into marks (regno,maths,physics,chemistry) values(#[payload.regno],
 #[payload.maths],#[payload.physics],#[payload.chemistry])]]></db:parameterized-query>
                 </db:insert>
@@ -58,7 +58,7 @@ http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mu
             </when>
             <otherwise>
                 <set-payload value="#[flowVars.originalPayload]" doc:name="Set Payload"/>
-                <db:update config-ref="MySQL_Configuration" doc:name="Database">
+                <db:update config-ref="MySQL_Configuration" doc:name="Updating the marks">
                     <db:parameterized-query><![CDATA[update marks set maths=#[payload.maths],physics=#[payload.physics],
 chemistry=#[payload.chemistry] where regno=#[flowVars.regnumber]]]></db:parameterized-query>
                 </db:update>

@@ -10,8 +10,8 @@ http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/htt
 http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
 http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd">
     <flow name="studentdataretrieveFlow">
-        <set-variable variableName="regNo" value="#[message.inboundProperties.'http.query.params'.regNo]" doc:name="Variable"/>
-        <db:select config-ref="MySQL_Configuration" doc:name="Database">
+        <set-variable variableName="regNo" value="#[message.inboundProperties.'http.query.params'.regNo]" doc:name="saving query params regno"/>
+        <db:select config-ref="MySQL_Configuration" doc:name="selecting the result column">
             <db:parameterized-query><![CDATA[select outcome from RESULTS  where regno= #[flowVars.regno]]]></db:parameterized-query>
         </db:select>
         <choice doc:name="Choice">
